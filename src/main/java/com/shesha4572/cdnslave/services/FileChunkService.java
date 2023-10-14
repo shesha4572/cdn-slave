@@ -4,9 +4,14 @@ import com.shesha4572.cdnslave.entities.FileChunk;
 import com.shesha4572.cdnslave.repositories.FileChunkDAOImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,6 +43,24 @@ public class FileChunkService {
         fileChunkDetails.setIsChunkFull(chunk.getSize() == 32 * 1024 * 1024);
         fileChunkRedis.saveFileChunk(fileChunkDetails);
 
+    }
+
+    public Resource downloadFileChunk(String fileChunkId) throws RuntimeException {
+        try {
+            if(!fileChunkRedis.existsFileChunk(fileChunkId)){
+                throw new RuntimeException("Could not read the file!");
+            }
+            Path file = root.resolve(fileChunkId);
+            Resource resource = new UrlResource(file.toUri());
+
+            if (resource.isReadable()) {
+                return resource;
+            } else {
+                throw new RuntimeException("Could not read the file!");
+            }
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Error: " + e.getMessage());
+        }
     }
 
 }
