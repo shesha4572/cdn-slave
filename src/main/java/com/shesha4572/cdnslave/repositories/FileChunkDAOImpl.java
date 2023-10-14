@@ -34,4 +34,9 @@ public class FileChunkDAOImpl implements IFileChunkDAO {
     public void deleteFileChunk(String fileChunkId) {
         hashOperations.delete(hashReference , fileChunkId);
     }
+
+    @Override
+    public Boolean existsFileChunk(String fileChunkId) {
+        return hashOperations.hasKey(hashReference , fileChunkId);
+    }
 }
