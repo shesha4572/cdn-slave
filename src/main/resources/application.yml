@@ -3,8 +3,13 @@ spring:
     multipart:
       max-file-size: 64MB
       max-request-size: 64MB
+  data:
+    redis:
+      port: 6379
+      host: "redis"
   config:
     name: "cdn-slave"
+
 server:
   port: 9001
 

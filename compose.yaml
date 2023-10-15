@@ -2,4 +2,20 @@ services:
   redis:
     image: 'redis:latest'
     ports:
-      - '6379'
+      - "6379:6379"
+    hostname: redis
+
+  app:
+    depends_on:
+      - redis
+    build: ./
+    env_file:
+      - ./.env
+    environment:
+      FILE_PATH: $FILE_PATH
+    ports:
+      - $SPRING_LOCAL_PORT:$SPRING_DOCKER_PORT
+    stdin_open: true
+    tty: true
+    links:
+      - redis

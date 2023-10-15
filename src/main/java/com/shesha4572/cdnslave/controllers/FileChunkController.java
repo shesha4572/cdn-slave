@@ -19,7 +19,7 @@ public class FileChunkController {
     public ResponseEntity<?> uploadChunk(@RequestParam("file") MultipartFile file ,
                                          @RequestHeader(value = "fileChunkId") String fileChunkId ,
                                          @RequestHeader(value = "fileChunkIndex") String fileChunkIndex,
-                                         @RequestHeader(value = "fileChunkReplicationNum") int replicationNum) throws Exception{
+                                         @RequestHeader(value = "fileChunkReplicationNum") int replicationNum){
 
         FileChunk fileChunk = FileChunk.builder()
                 .fileChunkId(fileChunkId)
