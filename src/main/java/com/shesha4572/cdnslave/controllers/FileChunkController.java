@@ -54,4 +54,22 @@ public class FileChunkController {
                 .header(HttpHeaders.CONTENT_DISPOSITION , "attachment; fileChunkId=\"" + chunk.getFilename() + "\"")
                 .body(chunk);
     }
+
+    @GetMapping(value = "/getPartialChunk" , produces = "application/vnd.fileChunkPartial")
+    public ResponseEntity<?> getPartialChunk(@RequestParam("fileChunkId") String fileChunkId,
+                                             @RequestParam("startIndex") int startIndex,
+                                             @RequestParam("endIndex") int endIndex){
+        Resource chunk;
+        try {
+            chunk = fileChunkService.downloadPartialFileChunk(fileChunkId , startIndex , endIndex);
+        }
+        catch (RuntimeException e){
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION , "attachment; fileChunkId=\"" + chunk.getFilename() + "\"")
+                .body(chunk);
+    }
+
 }

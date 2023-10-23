@@ -4,11 +4,13 @@ import com.shesha4572.cdnslave.entities.FileChunk;
 import com.shesha4572.cdnslave.repositories.FileChunkRedisRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -28,6 +30,9 @@ public class FileChunkService {
     }
     public void saveFileChunk(MultipartFile chunk , FileChunk fileChunkDetails) throws RuntimeException{
         try {
+            if(chunk.getSize() > 64000000){
+                throw new RuntimeException("File chunk is too large");
+            }
             Files.copy(chunk.getInputStream(), this.root.resolve(fileChunkDetails.getFileChunkId()));
         } catch (Exception e) {
             if (e instanceof FileAlreadyExistsException) {
@@ -57,6 +62,27 @@ public class FileChunkService {
                 throw new RuntimeException("Could not read the file!");
             }
         } catch (MalformedURLException e) {
+            throw new RuntimeException("Error: " + e.getMessage());
+        }
+    }
+
+    public Resource downloadPartialFileChunk(String fileChunkId , int startIndex , int endIndex) throws RuntimeException{
+        try {
+            if(!fileChunkRedis.existsById(fileChunkId)){
+                throw new RuntimeException("Could not read the file!");
+            }
+            Path file = root.resolve(fileChunkId);
+            Resource resource = new UrlResource(file.toUri());
+
+            if (resource.isReadable()) {
+                InputStream completeBytes = resource.getInputStream();
+                byte[] requiredBytes = new byte[endIndex - startIndex + 1];
+                completeBytes.read(requiredBytes , startIndex , requiredBytes.length);
+                return new ByteArrayResource(requiredBytes);
+            } else {
+                throw new RuntimeException("Could not read the file!");
+            }
+        } catch (Exception e) {
             throw new RuntimeException("Error: " + e.getMessage());
         }
     }
