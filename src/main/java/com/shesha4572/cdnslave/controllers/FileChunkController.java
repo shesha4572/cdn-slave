@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(value = "/api/v1/slave/chunk")
@@ -30,7 +31,6 @@ public class FileChunkController {
         String message = "";
         try {
             fileChunkService.saveFileChunk(file , fileChunk);
-
             message = "Uploaded the file successfully: " + file.getOriginalFilename();
             return ResponseEntity.ok().body(message);
         } catch (Exception e) {
