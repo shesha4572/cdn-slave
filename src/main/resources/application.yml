@@ -6,7 +6,6 @@ spring:
   data:
     redis:
       port: 6379
-      host: "redis"
   config:
     name: "cdn-slave"
 

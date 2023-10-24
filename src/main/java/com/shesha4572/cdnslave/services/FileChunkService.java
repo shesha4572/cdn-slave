@@ -35,16 +35,15 @@ public class FileChunkService {
     private final FileChunkRedisRepository fileChunkRedis;
     private final Path root;
 
-    @Autowired
-    private RedisAtomicInteger chunkRedisCounter;
+    private final RedisAtomicInteger chunkRedisCounter;
+    private final String masterNodeUrl = System.getenv("MASTER_NODE_URL");
+    private final String podName = System.getenv("POD_NAME");
 
-    private final String masterNodeUrl;
-
     @Autowired
-    public FileChunkService(FileChunkRedisRepository fileChunkRedis, @Value("${FILE_PATH}") String dir, @Value("${MASTER_NODE_URL}") String masterNodeUrl) {
+    public FileChunkService(FileChunkRedisRepository fileChunkRedis, @Value("${FILE_PATH}") String dir , RedisAtomicInteger redisAtomicInteger) {
         this.fileChunkRedis = fileChunkRedis;
         this.root = Paths.get(dir);
-        this.masterNodeUrl = masterNodeUrl;
+        this.chunkRedisCounter = redisAtomicInteger;
     }
 
     public void saveFileChunk(MultipartFile chunk, FileChunk fileChunkDetails) throws RuntimeException {
@@ -128,20 +127,27 @@ public class FileChunkService {
         BigDecimal chunkLoad = BigDecimal.valueOf(chunkRedisCounter.doubleValue() / 30);
         map.add("chunkLoad", chunkLoad.round(new MathContext(2)));
         log.info("Current load on node : " + chunkLoad.round(new MathContext(2)));
+        map.add("podName" , podName);
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(map, headers);
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(masterNodeUrl + "/api/v1/heartbeat");
-        System.out.println(request.getBody());
-        ResponseEntity<String> response = restTemplate.exchange(
-                builder.toUriString(),
-                HttpMethod.PUT,
-                request,
-                String.class);
-        if (response.getStatusCode() == HttpStatusCode.valueOf(200)) {
-            newFileChunks.forEach(fileChunk -> fileChunk.setIsMasterAware(Boolean.TRUE));
-        } else {
-            log.warn("Syncing with Master Node failed: " + response.getBody());
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(
+                    builder.toUriString(),
+                    HttpMethod.PUT,
+                    request,
+                    String.class);
+            if (response.getStatusCode() == HttpStatusCode.valueOf(200)) {
+                newFileChunks.forEach(fileChunk -> fileChunk.setIsMasterAware(Boolean.TRUE));
+            } else {
+                log.warn("Syncing with Master Node failed: " + response.getBody());
+            }
         }
+        catch (Exception e){
+            log.error(e.getMessage());
+        }
+
+
     }
 
 
