@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.redis.support.atomic.RedisAtomicInteger;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.net.MalformedURLException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -25,28 +28,31 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Objects;
 
 @Service
 @Slf4j
 public class FileChunkService {
     private final FileChunkRedisRepository fileChunkRedis;
     private final Path root;
-    private ArrayList<String> newFileChunks;
+
+    @Autowired
+    private RedisAtomicInteger chunkRedisCounter;
 
     private final String masterNodeUrl;
 
     @Autowired
-    public FileChunkService(FileChunkRedisRepository fileChunkRedis , @Value("${FILE_PATH}") String dir , @Value("${MASTER_NODE_URL}") String masterNodeUrl){
+    public FileChunkService(FileChunkRedisRepository fileChunkRedis, @Value("${FILE_PATH}") String dir, @Value("${MASTER_NODE_URL}") String masterNodeUrl) {
         this.fileChunkRedis = fileChunkRedis;
         this.root = Paths.get(dir);
-        this.newFileChunks = new ArrayList<>();
         this.masterNodeUrl = masterNodeUrl;
     }
-    public void saveFileChunk(MultipartFile chunk , FileChunk fileChunkDetails) throws RuntimeException{
+
+    public void saveFileChunk(MultipartFile chunk, FileChunk fileChunkDetails) throws RuntimeException {
         try {
-            if(chunk.getSize() > 64000000){
+            if (chunk.getSize() > 64000000) {
                 throw new RuntimeException("File chunk is too large");
+            } else if (chunkRedisCounter.get() == 30) {
+                throw new RuntimeException("No More Chunks can be stored");
             }
             Files.copy(chunk.getInputStream(), this.root.resolve(fileChunkDetails.getFileChunkId()));
         } catch (Exception e) {
@@ -59,13 +65,14 @@ public class FileChunkService {
         fileChunkDetails.setChunkAddedOn(LocalDateTime.now());
         fileChunkDetails.setChunkLength(chunk.getSize());
         fileChunkDetails.setIsChunkFull(chunk.getSize() == 64000000);
+        chunkRedisCounter.incrementAndGet();
         fileChunkRedis.save(fileChunkDetails);
-        newFileChunks.add(fileChunkDetails.getFileChunkId());
+        log.info(fileChunkDetails + " added successfully");
     }
 
     public Resource downloadFileChunk(String fileChunkId) throws RuntimeException {
         try {
-            if(!fileChunkRedis.existsById(fileChunkId)){
+            if (!fileChunkRedis.existsById(fileChunkId)) {
                 throw new RuntimeException("Could not read the file!");
             }
             Path file = root.resolve(fileChunkId);
@@ -81,9 +88,9 @@ public class FileChunkService {
         }
     }
 
-    public Resource downloadPartialFileChunk(String fileChunkId , int startIndex , int endIndex) throws RuntimeException{
+    public Resource downloadPartialFileChunk(String fileChunkId, int startIndex, int endIndex) throws RuntimeException {
         try {
-            if(!fileChunkRedis.existsById(fileChunkId)){
+            if (!fileChunkRedis.existsById(fileChunkId)) {
                 throw new RuntimeException("Could not read the file!");
             }
             Path file = root.resolve(fileChunkId);
@@ -92,7 +99,7 @@ public class FileChunkService {
             if (resource.isReadable()) {
                 InputStream completeBytes = resource.getInputStream();
                 byte[] requiredBytes = new byte[endIndex - startIndex + 1];
-                completeBytes.read(requiredBytes , startIndex , requiredBytes.length);
+                completeBytes.read(requiredBytes, startIndex, requiredBytes.length);
                 return new ByteArrayResource(requiredBytes);
             } else {
                 throw new RuntimeException("Could not read the file!");
@@ -102,21 +109,25 @@ public class FileChunkService {
         }
     }
 
-    @Scheduled(cron = "*/120 * * * * ?")
-    public void sendHeartBeat(){
-        if(newFileChunks.isEmpty()){
-            return;
-        }
-
+    @Scheduled(cron = "*/60 * * * * ?")
+    public void sendHeartBeat() {
         log.info("Syncing with Master Node..");
-
         RestTemplate restTemplate = new RestTemplate();
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-        MultiValueMap<String, Object> map= new LinkedMultiValueMap<>();
-        map.add("newChunks" , newFileChunks);
+        MultiValueMap<String, Object> map = new LinkedMultiValueMap<>();
+        ArrayList<FileChunk> newFileChunks = fileChunkRedis.getFileChunksByIsMasterAware(Boolean.FALSE);
+        if(newFileChunks.isEmpty()){
+            log.info("No new file Chunks found. Sync Complete");
+            return;
+        }
+        ArrayList<String> newFileChunkStrings = new ArrayList<>();
+        newFileChunks.forEach(fileChunk -> newFileChunkStrings.add(fileChunk.getFileChunkId()));
+        log.info("Found " + newFileChunkStrings.size() + " new file chunk(s)");
+        map.add("newChunks", newFileChunkStrings);
+        BigDecimal chunkLoad = BigDecimal.valueOf(chunkRedisCounter.doubleValue() / 30);
+        map.add("chunkLoad", chunkLoad.round(new MathContext(2)));
+        log.info("Current load on node : " + chunkLoad.round(new MathContext(2)));
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(map, headers);
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(masterNodeUrl + "/api/v1/heartbeat");
@@ -126,11 +137,9 @@ public class FileChunkService {
                 HttpMethod.PUT,
                 request,
                 String.class);
-        System.out.println(response);
-        if(response.getStatusCode() == HttpStatusCode.valueOf(200)){
-            newFileChunks.clear();
-        }
-        else{
+        if (response.getStatusCode() == HttpStatusCode.valueOf(200)) {
+            newFileChunks.forEach(fileChunk -> fileChunk.setIsMasterAware(Boolean.TRUE));
+        } else {
             log.warn("Syncing with Master Node failed: " + response.getBody());
         }
     }

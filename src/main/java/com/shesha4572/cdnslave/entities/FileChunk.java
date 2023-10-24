@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
+import org.springframework.data.redis.core.index.Indexed;
 
 import java.time.LocalDateTime;
 
@@ -16,11 +17,16 @@ import java.time.LocalDateTime;
 @Data
 public class FileChunk {
     @Id
+    @Indexed
     private String fileChunkId;
     private int fileChunkIndex;
     private LocalDateTime chunkAddedOn;
     private Long chunkLength;
     private Boolean isChunkFull;
     private int replicationNo;
+    @Indexed
+    private Boolean isMasterAware;
+    @Indexed
+    private Boolean isDeleted;
 
 }

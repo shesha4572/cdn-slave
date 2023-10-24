@@ -26,6 +26,8 @@ public class FileChunkController {
                 .fileChunkId(fileChunkId)
                 .fileChunkIndex(Integer.parseInt(fileChunkIndex))
                 .replicationNo(replicationNum)
+                .isMasterAware(Boolean.FALSE)
+                .isDeleted(Boolean.FALSE)
                 .build();
 
         String message = "";
