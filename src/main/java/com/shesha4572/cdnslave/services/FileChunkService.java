@@ -98,7 +98,8 @@ public class FileChunkService {
             if (resource.isReadable()) {
                 InputStream completeBytes = resource.getInputStream();
                 byte[] requiredBytes = new byte[endIndex - startIndex + 1];
-                completeBytes.read(requiredBytes, startIndex, requiredBytes.length);
+                completeBytes.skipNBytes(startIndex);
+                completeBytes.read(requiredBytes, 0, requiredBytes.length);
                 return new ByteArrayResource(requiredBytes);
             } else {
                 throw new RuntimeException("Could not read the file!");
