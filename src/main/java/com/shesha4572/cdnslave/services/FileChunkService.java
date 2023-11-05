@@ -125,9 +125,9 @@ public class FileChunkService {
         newFileChunks.forEach(fileChunk -> newFileChunkStrings.add(fileChunk.getFileChunkId()));
         log.info("Found " + newFileChunkStrings.size() + " new file chunk(s)");
         map.put("newChunks", newFileChunkStrings);
-        BigDecimal chunkLoad = BigDecimal.valueOf(chunkRedisCounter.doubleValue() / 30);
-        map.put("chunkLoad", chunkLoad.round(new MathContext(2)));
-        log.info("Current load on node : " + chunkLoad.round(new MathContext(2)));
+        BigDecimal chunkLoad = BigDecimal.valueOf(chunkRedisCounter.doubleValue() / 250);
+        map.put("chunkLoad", chunkLoad.round(new MathContext(4)));
+        log.info("Current load on node : " + chunkLoad.round(new MathContext(4)));
         map.put("podName" , podName);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(map, headers);
