@@ -28,6 +28,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -115,7 +117,7 @@ public class FileChunkService {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        MultiValueMap<String, Object> map = new LinkedMultiValueMap<>();
+        Map<String, Object> map = new HashMap<>();
         ArrayList<FileChunk> newFileChunks = fileChunkRedis.getFileChunksByIsMasterAware(Boolean.FALSE);
         if(newFileChunks.isEmpty()){
             log.info("No new file Chunks found. Sync Complete");
@@ -124,13 +126,13 @@ public class FileChunkService {
         ArrayList<String> newFileChunkStrings = new ArrayList<>();
         newFileChunks.forEach(fileChunk -> newFileChunkStrings.add(fileChunk.getFileChunkId()));
         log.info("Found " + newFileChunkStrings.size() + " new file chunk(s)");
-        map.add("newChunks", newFileChunkStrings);
+        map.put("newChunks", newFileChunkStrings);
         BigDecimal chunkLoad = BigDecimal.valueOf(chunkRedisCounter.doubleValue() / 30);
-        map.add("chunkLoad", chunkLoad.round(new MathContext(2)));
+        map.put("chunkLoad", chunkLoad.round(new MathContext(2)));
         log.info("Current load on node : " + chunkLoad.round(new MathContext(2)));
-        map.add("podName" , podName);
+        map.put("podName" , podName);
 
-        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(map, headers);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(map, headers);
         UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(masterNodeUrl + "/api/v1/heartbeat");
         try {
             ResponseEntity<String> response = restTemplate.exchange(
