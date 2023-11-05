@@ -18,13 +18,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class FileChunkController {
     private final FileChunkService fileChunkService;
 
-    @PostMapping(value = "/upload" , consumes = "multipart/form-data")
-    public ResponseEntity<?> uploadChunk(@RequestParam("file") MultipartFile file , @RequestBody UploadChunkDto uploadDetails){
+    @PostMapping(value = "/upload/{fileChunkId}/{fileChunkIndex}/{replicationNum}" , consumes = "multipart/form-data")
+    public ResponseEntity<?> uploadChunk(@RequestParam("file") MultipartFile file , @PathVariable String fileChunkId , @PathVariable String fileChunkIndex , @PathVariable String replicationNum){
 
         FileChunk fileChunk = FileChunk.builder()
-                .fileChunkId(uploadDetails.getFileChunkId())
-                .fileChunkIndex(uploadDetails.getFileChunkIndex())
-                .replicationNo(uploadDetails.getReplicationNum())
+                .fileChunkId(fileChunkId)
+                .fileChunkIndex(Integer.parseInt(fileChunkIndex))
+                .replicationNo(Integer.parseInt(replicationNum))
                 .isMasterAware(Boolean.FALSE)
                 .isDeleted(Boolean.FALSE)
                 .build();

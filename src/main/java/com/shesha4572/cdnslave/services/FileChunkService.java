@@ -114,7 +114,7 @@ public class FileChunkService {
         log.info("Syncing with Master Node..");
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setContentType(MediaType.APPLICATION_JSON);
         Map<String, Object> map = new HashMap<>();
         ArrayList<FileChunk> newFileChunks = fileChunkRedis.getFileChunksByIsMasterAware(Boolean.FALSE);
         if(newFileChunks.isEmpty()){
@@ -131,7 +131,7 @@ public class FileChunkService {
         map.put("podName" , podName);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(map, headers);
-        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(masterNodeUrl + "/api/v1/heartbeat");
+        UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(masterNodeUrl + "/api/v1/heartbeat/");
         try {
             ResponseEntity<String> response = restTemplate.exchange(
                     builder.toUriString(),
@@ -139,7 +139,7 @@ public class FileChunkService {
                     request,
                     String.class);
             if (response.getStatusCode() == HttpStatusCode.valueOf(200)) {
-                newFileChunks.forEach(fileChunk -> fileChunk.setIsMasterAware(Boolean.TRUE));
+                newFileChunks.forEach(fileChunk -> {fileChunk.setIsMasterAware(Boolean.TRUE); fileChunkRedis.save(fileChunk);});
             } else {
                 log.warn("Syncing with Master Node failed: " + response.getBody());
             }
