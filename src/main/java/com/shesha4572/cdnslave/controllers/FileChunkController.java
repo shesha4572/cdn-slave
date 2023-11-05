@@ -2,7 +2,6 @@ package com.shesha4572.cdnslave.controllers;
 
 import com.shesha4572.cdnslave.entities.FileChunk;
 import com.shesha4572.cdnslave.modelsDto.DownloadChunkPartialDto;
-import com.shesha4572.cdnslave.modelsDto.UploadChunkDto;
 import com.shesha4572.cdnslave.services.FileChunkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -41,8 +40,8 @@ public class FileChunkController {
 
     }
 
-    @GetMapping(value = "/get" , produces = "application/vnd.fileChunk")
-    public ResponseEntity<?> getChunk(@RequestBody String fileChunkId){
+    @GetMapping(value = "/get/{fileChunkId}" , produces = "application/vnd.fileChunk")
+    public ResponseEntity<?> getChunk(@PathVariable String fileChunkId){
         Resource chunk;
         try {
             chunk = fileChunkService.downloadFileChunk(fileChunkId);
@@ -56,7 +55,7 @@ public class FileChunkController {
                 .body(chunk);
     }
 
-    @GetMapping(value = "/getPartialChunk" , produces = "application/vnd.fileChunkPartial")
+    @PostMapping(value = "/getPartialChunk" , produces = "application/vnd.fileChunkPartial")
     public ResponseEntity<?> getPartialChunk(@RequestBody DownloadChunkPartialDto partialDto){
         Resource chunk;
         try {
