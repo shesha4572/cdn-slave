@@ -1,6 +1,8 @@
 package com.shesha4572.cdnslave.controllers;
 
 import com.shesha4572.cdnslave.entities.FileChunk;
+import com.shesha4572.cdnslave.modelsDto.DownloadChunkPartialDto;
+import com.shesha4572.cdnslave.modelsDto.UploadChunkDto;
 import com.shesha4572.cdnslave.services.FileChunkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
@@ -17,15 +19,12 @@ public class FileChunkController {
     private final FileChunkService fileChunkService;
 
     @PostMapping(value = "/upload" , consumes = "multipart/form-data")
-    public ResponseEntity<?> uploadChunk(@RequestParam("file") MultipartFile file ,
-                                         @RequestHeader(value = "fileChunkId") String fileChunkId ,
-                                         @RequestHeader(value = "fileChunkIndex") String fileChunkIndex,
-                                         @RequestHeader(value = "fileChunkReplicationNum") int replicationNum){
+    public ResponseEntity<?> uploadChunk(@RequestParam("file") MultipartFile file , @RequestBody UploadChunkDto uploadDetails){
 
         FileChunk fileChunk = FileChunk.builder()
-                .fileChunkId(fileChunkId)
-                .fileChunkIndex(Integer.parseInt(fileChunkIndex))
-                .replicationNo(replicationNum)
+                .fileChunkId(uploadDetails.getFileChunkId())
+                .fileChunkIndex(uploadDetails.getFileChunkIndex())
+                .replicationNo(uploadDetails.getReplicationNum())
                 .isMasterAware(Boolean.FALSE)
                 .isDeleted(Boolean.FALSE)
                 .build();
@@ -43,7 +42,7 @@ public class FileChunkController {
     }
 
     @GetMapping(value = "/get" , produces = "application/vnd.fileChunk")
-    public ResponseEntity<?> getChunk(@RequestParam("fileChunkId") String fileChunkId){
+    public ResponseEntity<?> getChunk(@RequestBody String fileChunkId){
         Resource chunk;
         try {
             chunk = fileChunkService.downloadFileChunk(fileChunkId);
@@ -58,12 +57,10 @@ public class FileChunkController {
     }
 
     @GetMapping(value = "/getPartialChunk" , produces = "application/vnd.fileChunkPartial")
-    public ResponseEntity<?> getPartialChunk(@RequestParam("fileChunkId") String fileChunkId,
-                                             @RequestParam("startIndex") int startIndex,
-                                             @RequestParam("endIndex") int endIndex){
+    public ResponseEntity<?> getPartialChunk(@RequestBody DownloadChunkPartialDto partialDto){
         Resource chunk;
         try {
-            chunk = fileChunkService.downloadPartialFileChunk(fileChunkId , startIndex , endIndex);
+            chunk = fileChunkService.downloadPartialFileChunk(partialDto.getFileChunkId(), partialDto.getStartIndex() , partialDto.getEndIndex());
         }
         catch (RuntimeException e){
             return ResponseEntity.notFound().build();
