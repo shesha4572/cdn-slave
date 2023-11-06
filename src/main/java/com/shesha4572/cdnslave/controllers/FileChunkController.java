@@ -40,7 +40,7 @@ public class FileChunkController {
 
     }
 
-    @GetMapping(value = "/get/{fileChunkId}" , produces = "application/vnd.fileChunk")
+    @GetMapping(value = "/get/{fileChunkId}")
     public ResponseEntity<?> getChunk(@PathVariable String fileChunkId){
         Resource chunk;
         try {
@@ -55,7 +55,7 @@ public class FileChunkController {
                 .body(chunk);
     }
 
-    @PostMapping(value = "/getPartialChunk" , produces = "application/vnd.fileChunkPartial")
+    @PostMapping(value = "/getPartialChunk")
     public ResponseEntity<?> getPartialChunk(@RequestBody DownloadChunkPartialDto partialDto){
         Resource chunk;
         try {
