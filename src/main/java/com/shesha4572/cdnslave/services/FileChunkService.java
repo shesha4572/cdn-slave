@@ -119,7 +119,6 @@ public class FileChunkService {
         ArrayList<FileChunk> newFileChunks = fileChunkRedis.getFileChunksByIsMasterAware(Boolean.FALSE);
         if(newFileChunks.isEmpty()){
             log.info("No new file Chunks found. Sync Complete");
-            return;
         }
         ArrayList<String> newFileChunkStrings = new ArrayList<>();
         newFileChunks.forEach(fileChunk -> newFileChunkStrings.add(fileChunk.getFileChunkId()));
