@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.data.redis.support.atomic.RedisAtomicInteger;
+import org.springframework.data.redis.support.atomic.RedisAtomicLong;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -35,22 +35,22 @@ public class FileChunkService {
     private final FileChunkRedisRepository fileChunkRedis;
     private final Path root;
 
-    private final RedisAtomicInteger bytesOccupiedRedisAtomicInteger;
+    private final RedisAtomicLong bytesOccupiedRedisAtomicLong;
     private final String masterNodeUrl = System.getenv("MASTER_NODE_URL");
     private final String podName = System.getenv("POD_NAME");
     private final long targetOccupancyBytes = (long) (Long.parseLong(System.getenv("STORAGE_BYTES")) * Float.parseFloat(System.getenv("STORAGE_OCCUPANCY_TARGET")));
     @Autowired
-    public FileChunkService(FileChunkRedisRepository fileChunkRedis, @Value("${FILE_PATH}") String dir , RedisAtomicInteger redisAtomicInteger) {
+    public FileChunkService(FileChunkRedisRepository fileChunkRedis, @Value("${FILE_PATH}") String dir , RedisAtomicLong redisAtomicLong) {
         this.fileChunkRedis = fileChunkRedis;
         this.root = Paths.get(dir);
-        this.bytesOccupiedRedisAtomicInteger = redisAtomicInteger;
+        this.bytesOccupiedRedisAtomicLong = redisAtomicLong;
     }
 
     public void saveFileChunk(MultipartFile chunk, FileChunk fileChunkDetails) throws RuntimeException {
         try {
             if (chunk.getSize() > 64000000) {
                 throw new RuntimeException("File chunk is too large");
-            } else if (bytesOccupiedRedisAtomicInteger.get() + chunk.getSize() > targetOccupancyBytes) { //change logic from no of chunks to occupied bytes
+            } else if (bytesOccupiedRedisAtomicLong.get() + chunk.getSize() > targetOccupancyBytes) { //change logic from no of chunks to occupied bytes
                 throw new RuntimeException("No More Chunks can be stored");
             }
             Files.copy(chunk.getInputStream(), this.root.resolve(fileChunkDetails.getFileChunkId()));
@@ -64,7 +64,7 @@ public class FileChunkService {
         fileChunkDetails.setChunkAddedOn(LocalDateTime.now());
         fileChunkDetails.setChunkLength(chunk.getSize());
         fileChunkDetails.setIsChunkFull(chunk.getSize() == 64000000);
-        bytesOccupiedRedisAtomicInteger.addAndGet((int) chunk.getSize());
+        bytesOccupiedRedisAtomicLong.addAndGet((int) chunk.getSize());
         fileChunkRedis.save(fileChunkDetails);
         log.info(fileChunkDetails + " added successfully");
     }
@@ -124,7 +124,7 @@ public class FileChunkService {
         newFileChunks.forEach(fileChunk -> newFileChunkStrings.add(fileChunk.getFileChunkId()));
         log.info("Found " + newFileChunkStrings.size() + " new file chunk(s)");
         map.put("newChunks", newFileChunkStrings);
-        BigDecimal chunkLoad = BigDecimal.valueOf(bytesOccupiedRedisAtomicInteger.doubleValue() / targetOccupancyBytes); //change occupancy logic but keep ratio from 0 to 1
+        BigDecimal chunkLoad = BigDecimal.valueOf(bytesOccupiedRedisAtomicLong.doubleValue() / targetOccupancyBytes); //change occupancy logic but keep ratio from 0 to 1
         map.put("chunkLoad", chunkLoad.round(new MathContext(4)));
         log.info("Current load on node : " + chunkLoad.round(new MathContext(4)));
         map.put("podName" , podName);
